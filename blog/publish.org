@@ -1,0 +1,562 @@
+* 将org-mode的文件变成html文件发布
+** 介绍
+   1. 这个是教你怎样将org-mode文件发布成XHTML的众多教程之一.我们使用发布机制是*.html文件和*.org文件分开,并且通过web浏览器访问他们.简单的将org-mode文件导出成html文件会将他们放在~/org下面
+   2. 我们的XHTML文件在那里都可以工作,任何的主机,不管有没有网络,甚至可以通过'file://'.为了达到这个目的,我们使用
+   #+BEGIN_EXAMPLE
+*** HTML文件中不回使用绝对路径
+*** 不会使用服务器端的脚本来操作我们的目录
+*** 没有base元素
+*** 没有软件除了emacs,org-mode和一个web浏览器
+   #+END_EXAMPLE
+** 基础知识
+*** 在这个教程中间,我们假设你所有的org-mode文件都在~/org下面,我们将他们发布到~/public_html/下面.
+*** 进一步的假设你已经熟悉作笔记的基本知识并且可以向org-mode的文件种添加一些内容.请在每个文件中至少添加一个标题.
+*** 首先要做事情就是新建一个~/org文件夹,就是我们note文件存放的地方.在~/org文件里面我们还有css/,scripts/,img/几个文件夹.
+*** 文件夹中的第一个文件是index.org,然后这个文件,也就是~/org/index.org这个文件将会通过发布机制生成一个index.html到~/public_html/文件夹下面去.
+*** 现在添加一个叫做~/org/rememeber.org的文件,添加样式文件,这个时候~/org/应该是这样的
+    #+BEGIN_EXAMPLE
+    ~/org/
+    |- css/
+    |  `- stylesheet.css
+    |- img/
+    |- index.org
+    `- remember.org
+    #+END_EXAMPLE
+*** 你可以在文件中像一般情况下添加链接.比如链接index.org到rememeber.org中你直接写
+    #+BEGIN_EXAMPLE
+    [[file:remember.org][remember]]
+    #+END_EXAMPLE
+*** 它会生成
+    #+BEGIN_EXAMPLE
+    <a href="./remember.html">remember</a>
+    #+END_EXAMPLE
+*** 添加图片也是同样道理,首先你得有~/org/img/test.jpg文件,然后链接
+    #+BEGIN_EXAMPLE
+    [[file:img/test.jpg]
+    #+END_EXAMPLE
+*** 你可能回通过点击的来测试你的链接.测试图片的时候你可能要打开'iimage-mode'.
+*** 另外你可以在Special comment section中看怎么去设置样式.推荐的做法是使用真正的样式.
+** 发布org项目
+*** 为了发布~/org/项目成HTML,我们想要设置变量'oeg-publish-project-alist'.我趋向于将每个项目都分成3个组件.我问需要两个不同的组件,因为我们需要不同的函数来发布不同的动态的内容(org->html)和静态的内容不如scirpts,images,stylesheets,
+*** 甚至是.htaccess文件(org=>copy).第三个组件知识方便告诉org执行前一个文件.
+*** 'org-publish-project-alist'可以通过使用(M-x customize-variable RET org-publish-project-alist RET)来设置,但是我更愿意用额外的文件来设置我的项目,因为他们并不多.在*scratch*这个buffer中下下下面的lisp代码
+    #+BEGIN_EXAMPLE
+    (require 'org-publish)
+    (setq org-publish-project-alist
+      '(
+    
+       ;; ... add all the components here (see below)...
+    
+      ))
+    #+END_EXAMPLE
+*** 确保你会将所有的组件都写进去
+*** Note组件
+**** 这个组件会将所有的org-mode文件都专成HTML.因此'publishing-function'会被设成'org-publish-org-to-html'.例子如下
+     #+BEGIN_EXAMPLE
+     ("org-notes"
+     :base-directory "~/org/"
+     :base-extension "org"
+     :publishing-directory "~/public_html/"
+     :recursive t
+     :publishing-function org-publish-org-to-html
+     :headline-levels 4             ; Just the default for this project.
+     :auto-preamble t
+     )
+     #+END_EXAMPLE
+**** 请注意,'headline-level'会根据 on a per file basis来覆写这个默认值
+**** 最重要的设置在这里
+| base-directory       | 组件的根目录                                                                        |
+| base-extension       | 文件后缀名                                                                          |
+| publishing-directory | 你所有发布文件将要去的地方                                                          |
+| recursive            | 如果是't',会包含子目录,我们希望如此.在':publishing-directory'没有的子目录将会被新建 |
+| publishing-function  | 文件会被如何处理,目前的情况是将org-mode文件转换成HTML                                                |
+*** static 组件
+**** 这个组件只是将文件和他们的文件夹从':base-directory'不做任何改变的复制到':publishing-deirectory'.因此我们告诉org-mode使用函数'org-publish-attachment'
+     #+BEGIN_EXAMPLE
+     ("org-static"
+     :base-directory "~/org/"
+     :base-extension "css\\|js\\|png\\|jpg\\|gif\\|pdf\\|mp3\\|ogg\\|swf"
+     :publishing-directory "~/public_html/"
+     :recursive t
+     :publishing-function org-publish-attachment
+     )
+     #+END_EXAMPLE
+**** 注意':publishing-function'设成了'org-publish-attachment'
+*** publish 组件
+**** 为了一键发布,我们添加了publish组件.为了这个组件,我常常丢掉了下标,并且使用项目的基本文件名
+     #+BEGIN_EXAMPLE
+     ("org" :components ("org-notes" "org-static"))
+     #+END_EXAMPLE
+**** 现在 ' M-x org-publish-project RET org RET'就可以将所有的东西递归的发布到  ~/public_html/. 如果目标文件夹不存将会重新生成一个新的.
+*** 噗,我们现在可以上传了么
+**** 理想的回答当然是'能,当然行'.不过还有一点没做.因为我们在*scratch*这个buffer种定义好了我们所有的发布的组件,请再一次确定所有的代码都很好的闭合.
+     #+BEGIN_EXAMPLE
+     (require 'org-publish)
+     (setq org-publish-project-alist
+      '(
+     
+       ;; ... all the components ...
+     
+      ))
+     #+END_EXAMPLE
+**** 移动到第一行的末尾,然后敲击'C-x C-e'来加载'orgpublish'.现在跳到最后一行的末尾,再一次的敲击'C-x C-e'.当你在'org-publish-project-alist'做出任何的修改都请重复最后一部操作.
+**** 现在如果要发布你的org-mode文件只需要敲击'M-x org-publish-project RET org RET ',或者使用在手册中列出的快捷键之一,如果一切进行顺利,如果你设置了'mod_userdir',你现在应该可以将你的浏览器指向'http://localhost/~user/',没有的话就直接访问你的file:////home/user/public_html 
+** 添加文件夹
+*** 当我们向~/org钟添加越来越多的文件时,我们就会碰到'networking-ssh-sshd-config.org'或者更长的名字,我们需要更改文件夹的结构了!
+    #+BEGIN_EXAMPLE
+    ~/org/
+    |- css/
+    |  `- stylesheet.css
+    |- Emacs
+    |  |- index.org
+    |  |- gnus.org
+    |  |- org.org
+    |  `- snippets.org
+    |- img/
+    |- index.org
+  `- remember.org
+    #+END_EXAMPLE
+*** 如果我们没有添加
+    #+BEGIN_QUOTE
+    :recursive t
+    #+END_QUOTE
+    到我们的note和static组件中,我们需要立马添加来导出这些子文件夹
+** 覆写默认值
+*** 有时候你可能只是想对某个文件做出导出的参数的修改.org-mode提供了这个设置!
+*** 导出选项模板
+**** 第一选择是将导出选项放在文件的顶部.你在org-mode中执行'M-x org-insert-export-options-template',这个时候魔法就粗现了.这条命令将会添加如下的几行东西到你文件开头的地方
+     #+BEGIN_QUOTE
+     #+TITLE:     filename.org
+     #+AUTHOR:    Firstename Lastname
+     #+EMAIL:     arthur-dent@example.tld
+     #+DATE:      <2008-08-25 Mo>
+     #+LANGUAGE:  en
+     #+TEXT:      Some descriptive text to be emitted.  Several lines OK.
+     #+OPTIONS:   H:3 num:t toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t TeX:t LaTeX:nil skip:nil d:t tags:not-in-toc
+     #+INFOJS_OPT: view:nil toc:t ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+     #+LINK_UP:
+     #+LINK_HOME:
+     #+STYLE:    <link rel="stylesheet" type="text/css" href="../stylesheet.css" />
+     #+END_QUOTE
+**** 现在我们需要做的就是更改其中的某些选项.所有的选项都列在了org-mode神奇的手册种.请注意,这些选项只会在文件打开的时候执行.为了明确的执行我们的选项,移动到那一行然后敲击'C-c'两次.
+*** 特殊的comment章节
+**** css样式变量可能用一些特殊的section
+***** #insert/appended to Org-mode files:
+      #+BEGIN_QUOTE
+      * COMMENT html style specifications
+        
+      # Local Variables:
+      # org-export-html-style: "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/stylesheet.css\" />"
+      # End:       #+END_QUOTE
+***** css/stylesheet.css suits the needs for a file in the root folder. Use ../css/stylesheet.css in a subfolder (first level), ../../css/stylesheet.css for a file in a sub-sub-folder.
+** 厌倦了模板的导出?
+*** 如果你像我一样厌倦了总是要添加一样的东西在文件的头部去声明一些东西的,org-mode支持的'laziness'并且提供了额外的方法去设置文件.我们所需要做的就是模板文件夹(eg.~/.emacs.d/org-templates/),向其中添加如下文件
+    1. level1-0.org :: 所有的文件将包含这些导出的选项.但是'特殊的commet章节'不会在子文件夹的文件种奏效.因此我们经常设置如下的导出选项来满足所有根目录下的项目.丢掉'#TITLE',因为每个文件都不一样嘛
+       - :#+STYLE: <link rel="stylesheet" type="text/css" href="stylesheet.css" />
+    2. level1-1.org :: 这个文件是为根文件夹下面所有项目的子目录的文件的样式服务的.丢掉'#TITLE'.这个文件的style行看起来像这样
+       - :#+STYLE: <link rel="stylesheet" type="text/css" href="../stylesheet.css" />
+    3. 添加更多层级的文件
+*** 现在,将'特殊commet章节'从你的文件的末尾去掉,将导出选项改成
+    #+BEGIN_QUOTE
+    #+SETUPFILE: ~/.emacs.d/org-templates/level-N.org
+    #+TITLE: My Title
+    #+END_QUOTE
+*** 将N替换成确定的数字,然后敲击'C-c'两次来执行更改.后来的行会覆盖掉之前的声明.
+*** 更多层级的文件
+**** 显然,更多level-N文件让我们有机会容易的在不同的导出选项中切换.作为例子,我们将设置一个用作presentation的导出选项,命名为level-0-slides.org,里面申明了org-info.js和一个样式文件
+     #+BEGIN_QUOTE
+     #+INFOJS_OPT: path:org-info.js
+     #+INFOJS_OPT: toc:nil view:slide
+     #+STYLE: <link rel="stylesheet" type="text/css" href="slides.css" />
+     #+END_QUOTE
+** 更多的项目
+*** 当我们习惯在org中作笔记,我们可能会添加一个'org'目录到我们所有的project种.这些project也会被发布.Project '~/B/' 会被发布到 '~/public_html/B/', '~/C/' 发布到 '~/public_html/C/'等.
+*** 这就会导致共用的样式文件和current JavaScripts — and to a new component.
+*** 继承的组件
+**** 一旦我们厌倦了在不同的项目间不停的复制一个又一个的静态文件,接下来的配置将会为我们上演一场魔法!我们简单的添加继承的组件,这将会将所有的静态的文件从~/org中引入.从现在开始,我们就可以在那里修改样式和脚本了!
+     #+BEGIN_QUOTE
+     ("B-inherit"
+     :base-directory "~/org/"
+     :recursive t
+     :base-extension "css\\|js"
+     :publishing-directory "~/public_html/B/"
+     :publishing-function org-publish-attachment
+     )
+     
+     ("B-org"
+     :base-directory "~/B/"
+     :auto-index t
+     :index-filename "sitemap.org"
+     :index-title "Sitemap"
+     :recursive t
+     :base-extension "org"
+     :publishing-directory "~/public_html/B/"
+     :publishing-function org-publish-org-to-html
+     :headline-levels 3
+     :auto-preamble t
+     )
+     ("B-static"
+     :base-directory "~/B/"
+     :recursive t
+     :base-extension "css\\|js\\|png\\|jpg\\|gif\\|pdf\\|mp3\\|ogg\\|swf"
+     :publishing-directory "~/public_html/B/"
+     :publishing-function org-publish-attachment)
+     
+     ("B" :components ("B-inherit" "B-notes" "B-static"))
+     #+END_QUOTE
+**** 注意!!!这些继承的魔法只在没有org的文件夹中奏效.你可能想将你的样式和脚本文件放在一个地方,甚至是添加更多的继承来引用上游的资源.
+**** 注意!!!'B-inherit'直接导出到了web.如果你想直接在~/B中跟踪~/org/*.css的变化,你就必须确保'B-inherit'是B的第一个组件,因为B中所有的组件会以一个列表的形式的执行,第一个会将最新的样式给B然后执行组件'B-static'
+*** 一个例子
+**** 我要使用org-info.js,并且追踪Worg git,我就在我所有的项目中用'inherit-org-info-js'
+     #+BEGIN_QUOTE
+     ("inherit-org-info-js"
+     :base-directory "~/develop/org/Worg/code/org-info-js/"
+     :recursive t
+     :base-extension "js"
+     :publishing-directory "~/org/"
+     :publishing-function org-publish-attachment)
+     
+     ;; ... all the rest ... ;;
+     
+     ("B" :components ("inherit-org-info-js" "B-inherit" "B-notes" "B-static"))
+     ("C" :components ("inherit-org-info-js" "C-inherit" "C-notes" "C-static"))
+     ("D" :components ("inherit-org-info-js" "D-inherit" "D-notes" "D-static"))
+     ("E" :components ("inherit-org-info-js" "E-inherit" "E-notes" "E-static"))
+     #+END_QUOTE
+**** 意味着,B,C,D,E使用本地的样式并且使用最新的org-info.js
+** 综述
+*** 如果有很多的文件,文件夹,项目什么的,我们需要一个容易的方法来引导所有的笔记嘛.我们现在所需要的就是,一个索引,一个对我们所有笔记的综述
+*** sitemap
+**** org-mode强大的发布机制同时也生成了一个递归的sitemap.它默认的名字是'sitemap.org',它挡住了我们的去路,因为我们需要的是一个sitemap.html.幸运的是我们可以通过设置来生成sitemap.为了生成sitemap,添加如下的组件:
+     #+BEGIN_QUOTE
+     :auto-sitemap t                ; Generate sitemap.org automagically...
+     :sitemap-filename "sitemap.org"  ; ... call it sitemap.org (it's the default)...
+     :sitemap-title "Sitemap"         ; ... with title 'Sitemap'.
+     #+END_QUOTE
+**** sitemap是我们所有项目结构树的映射。为了容易的进入sitemap，我们可以做两件事：
+     1. 设置‘UP’链接将起始页链接到sitemap.html(见下一个章节)
+     2. 使用‘#+INCLUDE: sitemap.org’指令。我们大多数的org-mode文件包含一个在底部叫做‘Links’的章节，包含了子章节的sitemap，里面依次包含了那个命令。在根目录的index.org文件中，我将这个sitemap放在第一章节。
+
+**** 你也可以通过‘:sitemap-sort-foldera’改变文件夹的位置，可以设置‘last’或者‘first’（默认），来第一个或者是最后一个展示文件夹。
+
+*** org-info.js
+**** 另外的一个使用额外的链接来引导结构的是or-info.js。让我们来像这样设置（可以在每个文件中，也可以在org-level-N.org文件中）
+     #+BEGIN_QUOTE
+     #+LINK_UP: index.html
+     #+END_QUOTE
+**** 这个一个‘UP’链接指向当前文件的‘index.html’
+**** 在这个项目的index.org中设置
+     #+BEGIN_QUOTE
+     #+LINK_UP: sitemap.html
+     #+END_QUOTE
+**** 如果是子目录的index.org
+     #+BEGIN_QUOTE
+     #+LINK_UP: ../index.html
+     #+END_QUOTE
+**** 'LINK_HOME'总是指向同一个文件
+     #+BEGIN_QUOTE
+     #+LINK_UP: http://localhost/~user/index.html
+     #+END_QUOTE
+**** 轻考虑将随后一个替换成一个相对的路径
+**** 不管我们在哪里，我们总是可以按下‘H n’来看sitemap。不管我们在哪里我们总是可以按住h到达树的顶部。
+** 一些特殊的符号
+*** 这里一个可以呗org-mode理解的LaTeX符号的列表.你可以随意的使用他们来达到你的预期的效果.
+#+BEGIN_QUOTE
+
+Symbol	LaTeX
+ 	\nbsp
+¡	\iexcl
+¢	\cent
+£	\pound
+¤	\curren
+¥	\yen
+¦	\brvbar
+|	\vert
+§	\sect
+¨	\uml
+©	\copy
+ª	\ordf
+«	\laquo
+¬	\not
+\shy
+®	\reg
+¯	\macr
+°	\deg
+±	\plusmn
+¹	\sup1
+²	\sup2
+³	\sup3
+´	\acute
+µ	\micro
+¶	\para
+·	\middot
+o	\odot
+*	\star
+¸	\cedil
+º	\ordm
+»	\raquo
+¼	\frac14
+½	\frac12
+¾	\frac34
+¿	\iquest
+À	\Agrave
+Á	\Aacute
+Â	\Acirc
+Ã	\Atilde
+Ä	\Auml
+Å	\Aring \AA
+Æ	\AElig
+Ç	\Ccedil
+È	\Egrave
+É	\Eacute
+Ê	\Ecirc
+Ë	\Euml
+Ì	\Igrave
+Í	\Iacute
+Î	\Icirc
+Ï	\Iuml
+Ð	\ETH
+Ñ	\Ntilde
+Ò	\Ograve
+Ó	\Oacute
+Ô	\Ocirc
+Õ	\Otilde
+Ö	\Ouml
+×	\times
+Ø	\Oslash
+Ù	\Ugrave
+Ú	\Uacute
+Û	\Ucirc
+Ü	\Uuml
+Ý	\Yacute
+Þ	\THORN
+ß	\szlig
+à	\agrave
+á	\aacute
+â	\acirc
+ã	\atilde
+ä	\auml
+å	\aring
+æ	\aelig
+ç	\ccedil
+è	\egrave
+é	\eacute
+ê	\ecirc
+ë	\euml
+ì	\igrave
+í	\iacute
+î	\icirc
+ï	\iuml
+ð	\eth
+ñ	\ntilde
+ò	\ograve
+ó	\oacute
+ô	\ocirc
+õ	\otilde
+ö	\ouml
+ø	\oslash
+ù	\ugrave
+ú	\uacute
+û	\ucirc
+ü	\uuml
+ý	\yacute
+þ	\thorn
+ÿ	\yuml
+ƒ	\fnof
+Α	\Alpha
+Β	\Beta
+Γ	\Gamma
+Δ	\Delta
+Ε	\Epsilon
+Ζ	\Zeta
+Η	\Eta
+Θ	\Theta
+Ι	\Iota
+Κ	\Kappa
+Λ	\Lambda
+Μ	\Mu
+Ν	\Nu
+Ξ	\Xi
+Ο	\Omicron
+Π	\Pi
+Ρ	\Rho
+Σ	\Sigma
+Τ	\Tau
+Υ	\Upsilon
+Φ	\Phi
+Χ	\Chi
+Ψ	\Psi
+Ω	\Omega
+α	\alpha
+β	\beta
+γ	\gamma
+δ	\delta
+ε	\epsilon
+ε	\varepsilon
+ζ	\zeta
+η	\eta
+θ	\theta
+ι	\iota
+κ	\kappa
+λ	\lambda
+μ	\mu
+ν	\nu
+ξ	\xi
+ο	\omicron
+π	\pi
+ρ	\rho
+ς	\sigmaf \varsigma
+σ	\sigma
+τ	\tau
+υ	\upsilon
+φ	\phi
+χ	\chi
+ψ	\psi
+ω	\omega
+ϑ	\thetasym \vartheta
+ϒ	\upsih
+ϖ	\piv
+•	\bull \bullet
+…	\hellip \dots
+′	\prime
+″	\Prime
+‾	\oline
+⁄	\frasl
+℘	\weierp
+ℑ	\image
+ℜ	\real
+™	\trade
+ℵ	\alefsym
+←	\larr
+↑	\uarr
+→	\rarr
+↓	\darr
+↔	\harr
+↵	\crarr
+⇐	\lArr
+⇑	\uArr
+⇒	\rArr
+⇓	\dArr
+⇔	\hArr
+∀	\forall
+\part	\part
+∃	\exist
+∅	\empty
+∇	\nabla
+∈	\isin
+∉	\notin
+∋	\ni
+∏	\prod
+∑	\sum
+−	\minus
+∗	\lowast
+√	\radic
+∝	\prop
+∞	\infin
+∠	\ang
+∩	\cap
+∪	\cup
+∫	\int
+∴	\there4
+∼	\sim
+≅	\cong
+≈	\asymp
+≠	\ne
+≡	\equiv
+≤	\le
+≥	\ge
+⊂	\sub
+⊃	\sup
+⊄	\nsub
+⊆	\sube
+⊇	\supe
+⊕	\oplus
+⊗	\otimes
+⊥	\perp
+⋅	\sdot
+⌈	\lceil
+⌉	\rceil
+⌊	\lfloor
+⌋	\rfloor
+⟨	\lang
+⟩	\rang
+◊	\loz
+♠	\spades
+♣	\clubs
+♥	\hearts
+♦	\diams
+☺	\smile
+"	\quot
+&	\amp
+<	\lt
+>	\gt
+Œ	\OElig
+œ	\oelig
+Š	\Scaron
+š	\scaron
+Ÿ	\Yuml
+ˆ	\circ
+˜	\tilde
+ 	\ensp
+ 	\emsp
+ 	\thinsp
+‌	\zwnj
+‍	\zwj
+‎	\lrm
+‏	\rlm
+–	\ndash
+—	\mdash
+‘	\lsquo
+’	\rsquo
+‚	\sbquo
+“	\ldquo
+”	\rdquo
+„	\bdquo
+†	\dagger
+‡	\Dagger
+‰	\permil
+‹	\lsaquo
+›	\rsaquo
+€	\euro
+arccos	\arccos
+arcsin	\arcsin
+arctan	\arctan
+arg	\arg
+cos	\cos
+cosh	\cosh
+cot	\cot
+coth	\coth
+csc	\csc
+°	\deg
+det	\det
+dim	\dim
+exp	\exp
+gcd	\gcd
+hom	\hom
+inf	\inf
+ker	\ker
+lg	\lg
+lim	\lim
+liminf	\liminf
+limsup	\limsup
+ln	\ln
+log	\log
+max	\max
+min	\min
+Pr	\Pr
+sec	\sec
+sin	\sin
+sinh	\sinh
+tan	\tan
+tanh	\tanh 
+#+END_QUOTE
+** 延伸
+*** 你可以去阅读org-mode手册,或者在http://lists.gnu.org/archive/html/emacs-orgmode/上面找到你问题的答案
+*** 玩的开心
+** 脚注
+   1. 你可能需要设置文件的后缀来导出文件'M-x customize RET org-export-html-extension'
+   2. 通过'M-x iimage-mode RET' iimage-mode甚至可以先是svg图像.
+   3. 所有的组件org-publish-projects-alist都在Org-mode手册中有显示
+   4. 文件可以从任何的地方链接到任何的地方
+   5. 由于服务器的原因这个是基本的.
+

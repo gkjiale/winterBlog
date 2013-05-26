@@ -1,0 +1,18 @@
+* 使用org和Jekyll来写博客
+** 介绍
+*** 
+#+BEGIN_EXAMPLE
+Jekyll is a static web site generator written in Ruby. It can transform various text markups, using a templating language, into static html. The resulting site can be served by almost any web server without requiring additional components such as php. Jekyll is the tool used to produce Github's pages.
+
+This article discusses how to produce both a static site and a blog using Jekyll and org. Rather than writing a markup processor for org files, I have relied on org's html export features to generate files that can be processed by Jekyll.
+
+Org already has an excellent html export engine. However, it lacks built in support for blogging. Using Jekyll also gives more control over the final appearance of your site.
+#+END_EXAMPLE
+*** 发布你的博客包括以下三个步骤
+    1. 利用org来写你的页面
+    2. 在Jeklly的目录中将你的org文件导出成html
+    3. 运行Jeklly将你的html文件转换成最终的文件
+    #+BEGIN_QUOTE
+    Jekyll默认将文件都放在_site中
+    #+END_QUOTE
+    
